@@ -757,11 +757,11 @@ function App() {
               <h4 className="font-medium text-blue-900 mb-3">Shared Bastion Rules (D&D 2024)</h4>
               <div className="text-sm text-blue-800 space-y-2">
                 <p><strong>• Shared Management:</strong> All party members collectively manage one bastion</p>
-                <p><strong>• Combined Facility Slots:</strong> Total special facility slots equal sum of all party members' individual limits</p>
+                <p><strong>• Highest Level Determines Slots:</strong> Special facility slots are based on the highest level character in the party</p>
+                <p><strong>• Current Max Level:</strong> {Math.max(...party.map(char => char.level), 5)} (allows {getTotalSpecialSlots()} special facilities)</p>
                 <p><strong>• Shared Resources:</strong> Gold, Bastion Defenders, and resources are pooled and shared by the party</p>
                 <p><strong>• Collective Orders:</strong> Any party member can issue orders to any facility during bastion turns</p>
-                <p><strong>• Shared Defense:</strong> All defenders protect the entire bastion</p>
-                <p><strong>• Individual Expertise:</strong> Characters can only add facilities they meet the prerequisites for</p>
+                <p><strong>• Prerequisites:</strong> Characters can only add facilities they meet the prerequisites for</p>
               </div>
             </div>
           </div>
