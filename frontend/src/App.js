@@ -730,7 +730,7 @@ function App() {
                             Level {character.level}
                           </span>
                           <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                            Contributes {character.level >= 17 ? 6 : character.level >= 13 ? 5 : character.level >= 9 ? 4 : 2} Facility Slots
+                            Max Level: {character.level} (Sets Facility Limit)
                           </span>
                         </div>
                       </div>
