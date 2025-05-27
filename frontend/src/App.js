@@ -11,6 +11,10 @@ const BASIC_FACILITIES = [
   { name: 'Storage', description: 'Area for storing goods and supplies' }
 ];
 
+const HIRELING_RACES = [
+  'Human', 'Elf', 'Dwarf', 'Halfling', 'Dragonborn', 'Gnome', 'Half-Elf', 'Half-Orc', 'Tiefling'
+];
+
 const SPECIAL_FACILITIES = [
   // Level 5 Facilities
   {
@@ -368,15 +372,30 @@ function App() {
   const [bastionGold, setBastionGold] = useState(5000);
   const [bastionDefenders, setBastionDefenders] = useState(0);
   const [bastionTurn, setBastionTurn] = useState(1);
+  const [defensiveWalls, setDefensiveWalls] = useState(0); // Number of 5-foot sections
+  const [armoryStocked, setArmoryStocked] = useState(false);
   const [basicFacilities, setBasicFacilities] = useState([
-    { name: 'Bedroom', space: 'Cramped', id: 1 },
-    { name: 'Kitchen', space: 'Roomy', id: 2 }
+    { 
+      name: 'Bedroom', 
+      space: 'Cramped', 
+      id: 1,
+      hirelings: [{ id: 1, name: 'Martha', race: 'Human', role: 'Caretaker' }]
+    },
+    { 
+      name: 'Kitchen', 
+      space: 'Roomy', 
+      id: 2,
+      hirelings: [{ id: 2, name: 'Cook', race: 'Halfling', role: 'Caretaker' }]
+    }
   ]);
   const [specialFacilities, setSpecialFacilities] = useState([]);
 
   // UI State
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [showAddFacility, setShowAddFacility] = useState(false);
+  const [showAddHireling, setShowAddHireling] = useState(null);
+  const [newHirelingName, setNewHirelingName] = useState('');
+  const [newHirelingRace, setNewHirelingRace] = useState('Human');
   const [activeTab, setActiveTab] = useState('party');
 
   // Load data from localStorage on mount
@@ -389,9 +408,21 @@ function App() {
         setBastionGold(data.bastionGold || 5000);
         setBastionDefenders(data.bastionDefenders || 0);
         setBastionTurn(data.bastionTurn || 1);
+        setDefensiveWalls(data.defensiveWalls || 0);
+        setArmoryStocked(data.armoryStocked || false);
         setBasicFacilities(data.basicFacilities || [
-          { name: 'Bedroom', space: 'Cramped', id: 1 },
-          { name: 'Kitchen', space: 'Roomy', id: 2 }
+          { 
+            name: 'Bedroom', 
+            space: 'Cramped', 
+            id: 1,
+            hirelings: [{ id: 1, name: 'Martha', race: 'Human', role: 'Caretaker' }]
+          },
+          { 
+            name: 'Kitchen', 
+            space: 'Roomy', 
+            id: 2,
+            hirelings: [{ id: 2, name: 'Cook', race: 'Halfling', role: 'Caretaker' }]
+          }
         ]);
         setSpecialFacilities(data.specialFacilities || []);
       } catch (error) {
@@ -408,6 +439,8 @@ function App() {
       bastionGold,
       bastionDefenders,
       bastionTurn,
+      defensiveWalls,
+      armoryStocked,
       basicFacilities,
       specialFacilities
     };
@@ -416,7 +449,7 @@ function App() {
     } catch (error) {
       console.error('Error saving bastion data:', error);
     }
-  }, [party, bastionGold, bastionDefenders, bastionTurn, basicFacilities, specialFacilities]);
+  }, [party, bastionGold, bastionDefenders, bastionTurn, defensiveWalls, armoryStocked, basicFacilities, specialFacilities]);
 
   // Add new character
   const addCharacter = () => {
@@ -468,13 +501,20 @@ function App() {
     );
   };
 
-  // Add special facility (no ownership tracking)
+  // Add special facility
   const addSpecialFacility = (facility) => {
     if (specialFacilities.length < getTotalSpecialSlots()) {
-      setSpecialFacilities([...specialFacilities, {
+      const newFacility = {
         ...facility,
-        id: Date.now()
-      }]);
+        id: Date.now(),
+        hirelings: Array.from({length: facility.hirelings}, (_, i) => ({
+          id: Date.now() + i,
+          name: `${facility.name} Worker ${i + 1}`,
+          race: HIRELING_RACES[Math.floor(Math.random() * HIRELING_RACES.length)],
+          role: facility.order + ' Specialist'
+        }))
+      };
+      setSpecialFacilities([...specialFacilities, newFacility]);
       setShowAddFacility(false);
     }
   };
@@ -488,11 +528,18 @@ function App() {
   const addBasicFacility = (facilityName, space) => {
     const cost = FACILITY_COSTS[space].cost;
     if (bastionGold >= cost) {
-      setBasicFacilities([...basicFacilities, {
+      const newFacility = {
         name: facilityName,
         space: space,
-        id: Date.now()
-      }]);
+        id: Date.now(),
+        hirelings: [{ 
+          id: Date.now(), 
+          name: `${facilityName} Caretaker`, 
+          race: HIRELING_RACES[Math.floor(Math.random() * HIRELING_RACES.length)], 
+          role: 'Caretaker' 
+        }]
+      };
+      setBasicFacilities([...basicFacilities, newFacility]);
       setBastionGold(bastionGold - cost);
     }
   };
@@ -500,6 +547,60 @@ function App() {
   // Remove basic facility
   const removeBasicFacility = (id) => {
     setBasicFacilities(basicFacilities.filter(f => f.id !== id));
+  };
+
+  // Add hireling to facility
+  const addHireling = (facilityId, isSpecial) => {
+    if (!newHirelingName.trim()) return;
+
+    const newHireling = {
+      id: Date.now(),
+      name: newHirelingName.trim(),
+      race: newHirelingRace,
+      role: isSpecial ? 'Specialist' : 'Caretaker'
+    };
+
+    if (isSpecial) {
+      setSpecialFacilities(specialFacilities.map(f => 
+        f.id === facilityId 
+          ? { ...f, hirelings: [...f.hirelings, newHireling] }
+          : f
+      ));
+    } else {
+      setBasicFacilities(basicFacilities.map(f => 
+        f.id === facilityId 
+          ? { ...f, hirelings: [...f.hirelings, newHireling] }
+          : f
+      ));
+    }
+
+    setNewHirelingName('');
+    setNewHirelingRace('Human');
+    setShowAddHireling(null);
+  };
+
+  // Remove hireling
+  const removeHireling = (facilityId, hirelingId, isSpecial) => {
+    if (isSpecial) {
+      setSpecialFacilities(specialFacilities.map(f => 
+        f.id === facilityId 
+          ? { ...f, hirelings: f.hirelings.filter(h => h.id !== hirelingId) }
+          : f
+      ));
+    } else {
+      setBasicFacilities(basicFacilities.map(f => 
+        f.id === facilityId 
+          ? { ...f, hirelings: f.hirelings.filter(h => h.id !== hirelingId) }
+          : f
+      ));
+    }
+  };
+
+  // Calculate total hirelings
+  const getTotalHirelings = () => {
+    const basicHirelings = basicFacilities.reduce((sum, f) => sum + f.hirelings.length, 0);
+    const specialHirelings = specialFacilities.reduce((sum, f) => sum + f.hirelings.length, 0);
+    return basicHirelings + specialHirelings;
   };
 
   if (party.length === 0) {
@@ -532,7 +633,7 @@ function App() {
           <div className="mt-6 text-sm text-gray-500 text-center space-y-1">
             <p><strong>Shared Bastion Rules:</strong></p>
             <p>• All characters manage one bastion together</p>
-            <p>• Each character contributes their special facility slots</p>
+            <p>• Party's combined levels determine available facilities</p>
             <p>• Resources and defenders are shared by the party</p>
             <p>• Any character can issue orders during bastion turns</p>
           </div>
@@ -586,7 +687,7 @@ function App() {
         {/* Navigation */}
         <nav className="mb-6">
           <div className="flex space-x-1 bg-gray-200 rounded-lg p-1">
-            {['party', 'overview', 'facilities', 'hirelings', 'resources', 'turns'].map((tab) => (
+            {['party', 'overview', 'facilities', 'hirelings', 'defense', 'resources', 'turns'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
@@ -641,16 +742,16 @@ function App() {
               </div>
             </div>
 
-            {/* Combined Bastion Rules */}
+            {/* Shared Bastion Rules */}
             <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
               <h4 className="font-medium text-blue-900 mb-3">Shared Bastion Rules (D&D 2024)</h4>
               <div className="text-sm text-blue-800 space-y-2">
-                <p><strong>• Combined Structure:</strong> All characters' bastions are combined into a single large structure</p>
-                <p><strong>• Individual Facility Limits:</strong> Each character can only contribute their level-appropriate number of special facilities</p>
-                <p><strong>• Shared Resources:</strong> Gold, Bastion Defenders, and hirelings are pooled and shared by the party</p>
-                <p><strong>• Independent Orders:</strong> Each character can issue orders to any facility during bastion turns</p>
-                <p><strong>• Shared Defense:</strong> During attacks, defenders can be allocated between any character's contributed facilities</p>
-                <p><strong>• Individual Hirelings:</strong> Each facility retains its own hirelings (cannot be shared between facilities)</p>
+                <p><strong>• Shared Management:</strong> All party members collectively manage one bastion</p>
+                <p><strong>• Combined Facility Slots:</strong> Total special facility slots equal sum of all party members' individual limits</p>
+                <p><strong>• Shared Resources:</strong> Gold, Bastion Defenders, and resources are pooled and shared by the party</p>
+                <p><strong>• Collective Orders:</strong> Any party member can issue orders to any facility during bastion turns</p>
+                <p><strong>• Shared Defense:</strong> All defenders protect the entire bastion</p>
+                <p><strong>• Individual Expertise:</strong> Characters can only add facilities they meet the prerequisites for</p>
               </div>
             </div>
           </div>
@@ -716,15 +817,17 @@ function App() {
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Hirelings:</span>
-                    <span className="font-medium">
-                      {basicFacilities.length + specialFacilities.reduce((sum, f) => sum + (typeof f.hirelings === 'number' ? f.hirelings : 1), 0)}
-                    </span>
+                    <span className="font-medium">{getTotalHirelings()}</span>
                   </div>
                   <div className="flex justify-between">
                     <span className="text-gray-600">Total Space Used:</span>
                     <span className="font-medium">
                       {[...basicFacilities, ...specialFacilities].reduce((sum, f) => sum + SPACE_LIMITS[f.space], 0)} squares
                     </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Defensive Walls:</span>
+                    <span className="font-medium">{defensiveWalls} sections</span>
                   </div>
                 </div>
               </div>
@@ -751,6 +854,12 @@ function App() {
                     className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
                   >
                     Manage Facilities
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('defense')}
+                    className="w-full px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700"
+                  >
+                    Manage Defenses
                   </button>
                 </div>
               </div>
@@ -801,7 +910,7 @@ function App() {
                             </p>
                           )}
                           <p className="text-sm text-gray-500">
-                            Hirelings: {facility.hirelings} | Space: {SPACE_LIMITS[facility.space]} squares
+                            Hirelings: {facility.hirelings.length} | Space: {SPACE_LIMITS[facility.space]} squares
                           </p>
                         </div>
                         <div className="flex space-x-2">
@@ -834,7 +943,9 @@ function App() {
                   <div key={facility.id} className="flex justify-between items-center border rounded-lg p-3">
                     <div>
                       <span className="font-medium">{facility.name}</span>
-                      <span className="text-gray-500 text-sm ml-2">({facility.space} - {SPACE_LIMITS[facility.space]} squares)</span>
+                      <span className="text-gray-500 text-sm ml-2">
+                        ({facility.space} - {SPACE_LIMITS[facility.space]} squares, {facility.hirelings.length} hirelings)
+                      </span>
                     </div>
                     <button
                       onClick={() => removeBasicFacility(facility.id)}
@@ -883,9 +994,7 @@ function App() {
               <h4 className="font-medium text-blue-900 mb-2">Hireling Overview</h4>
               <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
                 <div className="text-center">
-                  <p className="text-2xl font-bold text-blue-600">
-                    {basicFacilities.length + specialFacilities.reduce((sum, f) => sum + (typeof f.hirelings === 'number' ? f.hirelings : 1), 0)}
-                  </p>
+                  <p className="text-2xl font-bold text-blue-600">{getTotalHirelings()}</p>
                   <p className="text-blue-800">Total Hirelings</p>
                 </div>
                 <div className="text-center">
@@ -911,10 +1020,10 @@ function App() {
               {specialFacilities.length === 0 ? (
                 <p className="text-gray-500 text-center py-4">No special facilities with hirelings yet</p>
               ) : (
-                <div className="space-y-3">
+                <div className="space-y-4">
                   {specialFacilities.map((facility) => (
                     <div key={facility.id} className="border rounded-lg p-4 hover:bg-gray-50">
-                      <div className="flex justify-between items-start">
+                      <div className="flex justify-between items-start mb-3">
                         <div className="flex-1">
                           <div className="flex items-center space-x-3 mb-2">
                             <h5 className="font-medium text-lg">{facility.name}</h5>
@@ -922,30 +1031,35 @@ function App() {
                               {facility.order} Orders
                             </span>
                             <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
-                              {facility.hirelings} Hireling{facility.hirelings > 1 ? 's' : ''}
+                              {facility.hirelings.length} Hireling{facility.hirelings.length > 1 ? 's' : ''}
                             </span>
                           </div>
-                          <p className="text-gray-600 text-sm mb-2">{facility.description}</p>
-                          <div className="text-sm text-gray-500">
-                            <p><span className="font-medium">Duties:</span> Maintain the {facility.name}, execute {facility.order} orders</p>
-                            <p><span className="font-medium">Skills:</span> 
-                              {facility.order === 'Craft' && ' Proficiency with facility tools, crafting expertise'}
-                              {facility.order === 'Trade' && ' Commerce, negotiation, market knowledge'}
-                              {facility.order === 'Research' && ' Investigation, lore knowledge, academic research'}
-                              {facility.order === 'Recruit' && ' Leadership, persuasion, military knowledge'}
-                              {facility.order === 'Harvest' && ' Nature knowledge, resource gathering, cultivation'}
-                              {facility.order === 'Empower' && ' Specialized training, empowerment techniques'}
-                            </p>
+                        </div>
+                        <button
+                          onClick={() => setShowAddHireling(facility.id)}
+                          className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm"
+                        >
+                          Add Hireling
+                        </button>
+                      </div>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {facility.hirelings.map((hireling) => (
+                          <div key={hireling.id} className="border rounded p-3 bg-white">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium">{hireling.name}</p>
+                                <p className="text-sm text-gray-600">{hireling.race} {hireling.role}</p>
+                              </div>
+                              <button
+                                onClick={() => removeHireling(facility.id, hireling.id, true)}
+                                className="text-red-500 hover:text-red-700 text-sm"
+                              >
+                                ✕
+                              </button>
+                            </div>
                           </div>
-                        </div>
-                        <div className="ml-4">
-                          <button
-                            onClick={() => setSelectedFacility(facility)}
-                            className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm"
-                          >
-                            Facility Details
-                          </button>
-                        </div>
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -959,18 +1073,46 @@ function App() {
               {basicFacilities.length === 0 ? (
                 <p className="text-gray-500 text-center py-4">No basic facilities yet</p>
               ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                <div className="space-y-4">
                   {basicFacilities.map((facility) => (
-                    <div key={facility.id} className="border rounded-lg p-3 hover:bg-gray-50">
-                      <div className="flex items-center justify-between mb-2">
-                        <h5 className="font-medium">{facility.name}</h5>
-                        <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
-                          1 Caretaker
-                        </span>
+                    <div key={facility.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-start mb-3">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <h5 className="font-medium text-lg">{facility.name}</h5>
+                            <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
+                              {facility.space} ({SPACE_LIMITS[facility.space]} squares)
+                            </span>
+                            <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                              {facility.hirelings.length} Caretaker{facility.hirelings.length > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => setShowAddHireling(facility.id)}
+                          className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 text-sm"
+                        >
+                          Add Caretaker
+                        </button>
                       </div>
-                      <div className="text-sm text-gray-600">
-                        <p><span className="font-medium">Duties:</span> Maintain and clean the {facility.name.toLowerCase()}</p>
-                        <p><span className="font-medium">Space:</span> {facility.space} ({SPACE_LIMITS[facility.space]} squares)</p>
+                      
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+                        {facility.hirelings.map((hireling) => (
+                          <div key={hireling.id} className="border rounded p-3 bg-white">
+                            <div className="flex justify-between items-start">
+                              <div>
+                                <p className="font-medium">{hireling.name}</p>
+                                <p className="text-sm text-gray-600">{hireling.race} {hireling.role}</p>
+                              </div>
+                              <button
+                                onClick={() => removeHireling(facility.id, hireling.id, false)}
+                                className="text-red-500 hover:text-red-700 text-sm"
+                              >
+                                ✕
+                              </button>
+                            </div>
+                          </div>
+                        ))}
                       </div>
                     </div>
                   ))}
@@ -986,7 +1128,138 @@ function App() {
                 <p>• Hirelings are loyal to the bastion and follow orders from any party member</p>
                 <p>• Special facility hirelings have proficiencies related to their facility's function</p>
                 <p>• Basic facility hirelings primarily handle maintenance and upkeep</p>
-                <p>• Hirelings cannot be shared between facilities or reassigned</p>
+                <p>• You can hire additional hirelings for any facility to help with workload</p>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Defense Tab */}
+        {activeTab === 'defense' && (
+          <div className="space-y-6">
+            {/* Defense Overview */}
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <h3 className="text-lg font-semibold mb-4">Bastion Defenses</h3>
+              
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-blue-600">{bastionDefenders}</p>
+                  <p className="text-gray-700">Bastion Defenders</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-green-600">{defensiveWalls}</p>
+                  <p className="text-gray-700">Wall Sections</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-3xl font-bold text-purple-600">{armoryStocked ? 'Yes' : 'No'}</p>
+                  <p className="text-gray-700">Armory Stocked</p>
+                </div>
+              </div>
+
+              {/* Defenders Management */}
+              <div className="mb-6">
+                <h4 className="font-medium mb-3">Bastion Defenders</h4>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Current Defenders: <span className="font-medium">{bastionDefenders}</span></p>
+                      <p className="text-xs text-gray-500">Defenders can be recruited through Barrack facilities</p>
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setBastionDefenders(Math.max(0, bastionDefenders - 1))}
+                        className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                      >
+                        -1
+                      </button>
+                      <button
+                        onClick={() => setBastionDefenders(bastionDefenders + 1)}
+                        className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200"
+                      >
+                        +1
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Defensive Walls */}
+              <div className="mb-6">
+                <h4 className="font-medium mb-3">Defensive Walls</h4>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex justify-between items-center mb-4">
+                    <div>
+                      <p className="text-sm text-gray-600">Wall Sections: <span className="font-medium">{defensiveWalls}</span></p>
+                      <p className="text-xs text-gray-500">Cost: 250 GP per 5-foot section (10 days to build)</p>
+                      {defensiveWalls > 0 && (
+                        <p className="text-xs text-green-600">Enclosed bastion: -2 dice on attack damage rolls</p>
+                      )}
+                    </div>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => setDefensiveWalls(Math.max(0, defensiveWalls - 1))}
+                        className="px-3 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200"
+                      >
+                        -1 Section
+                      </button>
+                      <button
+                        onClick={() => {
+                          if (bastionGold >= 250) {
+                            setDefensiveWalls(defensiveWalls + 1);
+                            setBastionGold(bastionGold - 250);
+                          }
+                        }}
+                        disabled={bastionGold < 250}
+                        className="px-3 py-1 bg-green-100 text-green-700 rounded hover:bg-green-200 disabled:bg-gray-300"
+                      >
+                        +1 Section (250 GP)
+                      </button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Armory Status */}
+              <div>
+                <h4 className="font-medium mb-3">Armory Status</h4>
+                <div className="bg-gray-50 rounded-lg p-4">
+                  <div className="flex justify-between items-center">
+                    <div>
+                      <p className="text-sm text-gray-600">
+                        Status: <span className="font-medium">{armoryStocked ? 'Stocked' : 'Not Stocked'}</span>
+                      </p>
+                      <p className="text-xs text-gray-500">
+                        {armoryStocked 
+                          ? 'Roll d8 instead of d6 for defender losses' 
+                          : 'Stock armory to improve defender survivability'
+                        }
+                      </p>
+                    </div>
+                    <button
+                      onClick={() => setArmoryStocked(!armoryStocked)}
+                      className={`px-4 py-2 rounded ${
+                        armoryStocked 
+                          ? 'bg-red-100 text-red-700 hover:bg-red-200' 
+                          : 'bg-green-100 text-green-700 hover:bg-green-200'
+                      }`}
+                    >
+                      {armoryStocked ? 'Deplete' : 'Stock'} Armory
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Defense Rules */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-6">
+              <h4 className="font-medium text-blue-900 mb-3">Bastion Defense Rules</h4>
+              <div className="text-sm text-blue-800 space-y-2">
+                <p><strong>• Bastion Defenders:</strong> Protect the bastion during attack events</p>
+                <p><strong>• Defensive Walls:</strong> 20 feet high, may include walkways. Fully enclosed bastion reduces attack damage by 2 dice</p>
+                <p><strong>• Armory Benefits:</strong> Stocked armory lets defenders roll d8 instead of d6 for survival</p>
+                <p><strong>• Attack Events:</strong> Roll 6d6 during attacks - each 1 rolled = 1 defender lost</p>
+                <p><strong>• Combined Defenses:</strong> Walls + Stocked Armory + Defenders = Maximum protection</p>
+                <p><strong>• Special Facilities:</strong> Some facilities like War Room provide additional defensive bonuses</p>
               </div>
             </div>
           </div>
@@ -1005,6 +1278,10 @@ function App() {
                     <span className="font-medium">{bastionGold} GP</span>
                   </div>
                   <div className="flex justify-between">
+                    <span>Wall Investment:</span>
+                    <span className="font-medium">{defensiveWalls * 250} GP</span>
+                  </div>
+                  <div className="flex justify-between">
                     <span>Facility Maintenance:</span>
                     <span className="text-green-600">Covered by income</span>
                   </div>
@@ -1020,15 +1297,19 @@ function App() {
                   </div>
                   <div className="flex justify-between">
                     <span>Total Hirelings:</span>
+                    <span className="font-medium">{getTotalHirelings()}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span>Special Facility Staff:</span>
                     <span className="font-medium">
-                      {basicFacilities.length + specialFacilities.reduce((sum, f) => sum + (typeof f.hirelings === 'number' ? f.hirelings : 1), 0)}
+                      {specialFacilities.reduce((sum, f) => sum + f.hirelings.length, 0)}
                     </span>
                   </div>
                 </div>
               </div>
 
               <div className="space-y-4">
-                <h4 className="font-medium">Space Usage</h4>
+                <h4 className="font-medium">Infrastructure</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Total Squares:</span>
@@ -1040,30 +1321,14 @@ function App() {
                     <span>Total Facilities:</span>
                     <span className="font-medium">{basicFacilities.length + specialFacilities.length}</span>
                   </div>
+                  <div className="flex justify-between">
+                    <span>Defense Rating:</span>
+                    <span className="font-medium">
+                      {defensiveWalls > 0 && armoryStocked ? 'Excellent' : 
+                       defensiveWalls > 0 || armoryStocked ? 'Good' : 'Basic'}
+                    </span>
+                  </div>
                 </div>
-              </div>
-            </div>
-
-            {/* Resource Breakdown by Character */}
-            <div className="mt-8 border-t pt-6">
-              <h4 className="font-medium mb-4">Facility Contributions by Character</h4>
-              <div className="space-y-3">
-                {party.map((character) => {
-                  const characterFacilities = specialFacilities.filter(f => f.ownerId === character.id);
-                  return (
-                    <div key={character.id} className="border rounded-lg p-3">
-                      <div className="flex justify-between items-center">
-                        <span className="font-medium">{character.name} (Level {character.level})</span>
-                        <span className="text-sm text-gray-600">
-                          {characterFacilities.length}/{character.level >= 17 ? 6 : character.level >= 13 ? 5 : character.level >= 9 ? 4 : 2} slots used
-                        </span>
-                      </div>
-                      <div className="text-sm text-gray-600 mt-1">
-                        Facilities: {characterFacilities.map(f => f.name).join(', ') || 'None contributed'}
-                      </div>
-                    </div>
-                  );
-                })}
               </div>
             </div>
           </div>
@@ -1236,26 +1501,67 @@ function App() {
                             </p>
                           )}
                         </div>
-                        <div className="ml-4">
-                          <p className="text-xs text-gray-600 mb-2">Choose owner:</p>
-                          <div className="space-y-1">
-                            {party.filter(char => {
-                              const maxSlots = char.level >= 17 ? 6 : char.level >= 13 ? 5 : char.level >= 9 ? 4 : 2;
-                              return char.usedSpecialSlots < maxSlots && char.level >= facility.level;
-                            }).map(char => (
-                              <button
-                                key={char.id}
-                                onClick={() => addSpecialFacility(facility, char.id)}
-                                className="block w-full text-left px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 text-xs"
-                              >
-                                {char.name} ({char.usedSpecialSlots}/{char.level >= 17 ? 6 : char.level >= 13 ? 5 : char.level >= 9 ? 4 : 2})
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                        <button
+                          onClick={() => addSpecialFacility(facility)}
+                          className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
+                        >
+                          Add
+                        </button>
                       </div>
                     </div>
                   ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Add Hireling Modal */}
+        {showAddHireling && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Add Hireling</h3>
+                  <button
+                    onClick={() => setShowAddHireling(null)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Hireling Name"
+                    value={newHirelingName}
+                    onChange={(e) => setNewHirelingName(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  />
+                  <select
+                    value={newHirelingRace}
+                    onChange={(e) => setNewHirelingRace(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  >
+                    {HIRELING_RACES.map(race => (
+                      <option key={race} value={race}>{race}</option>
+                    ))}
+                  </select>
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => setShowAddHireling(null)}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={() => addHireling(showAddHireling, specialFacilities.find(f => f.id === showAddHireling) !== undefined)}
+                      disabled={!newHirelingName.trim()}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                    >
+                      Add Hireling
+                    </button>
+                  </div>
                 </div>
               </div>
             </div>
@@ -1290,13 +1596,8 @@ function App() {
                         {selectedFacility.order} Order
                       </span>
                       <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
-                        {selectedFacility.hirelings} Hireling{selectedFacility.hirelings > 1 ? 's' : ''}
+                        {selectedFacility.hirelings ? selectedFacility.hirelings.length : selectedFacility.hirelings} Hireling{selectedFacility.hirelings > 1 ? 's' : ''}
                       </span>
-                      {selectedFacility.ownerName && (
-                        <span className="px-2 py-1 bg-orange-100 text-orange-800 text-xs rounded-full">
-                          Owner: {selectedFacility.ownerName}
-                        </span>
-                      )}
                     </div>
                   </div>
 
