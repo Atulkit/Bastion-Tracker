@@ -375,18 +375,25 @@ function App() {
   useEffect(() => {
     const savedParty = localStorage.getItem('dnd-bastion-party');
     if (savedParty) {
-      const partyData = JSON.parse(savedParty);
-      setParty(partyData);
-      if (partyData.length > 0) {
-        setActiveCharacterId(partyData[0].id);
+      try {
+        const partyData = JSON.parse(savedParty);
+        if (Array.isArray(partyData) && partyData.length > 0) {
+          setParty(partyData);
+          setActiveCharacterId(partyData[0].id);
+        }
+      } catch (error) {
+        console.error('Error loading party data:', error);
+        localStorage.removeItem('dnd-bastion-party');
       }
     }
   }, []);
 
   // Save party to localStorage whenever it changes
   useEffect(() => {
-    if (party.length > 0) {
+    try {
       localStorage.setItem('dnd-bastion-party', JSON.stringify(party));
+    } catch (error) {
+      console.error('Error saving party data:', error);
     }
   }, [party]);
 
