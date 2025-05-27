@@ -558,9 +558,6 @@ function App() {
                 <span className="text-sm font-medium text-blue-900">
                   {character.name} (Lvl {character.level})
                 </span>
-                <span className="text-xs text-blue-600 ml-2">
-                  {character.usedSpecialSlots}/{character.level >= 17 ? 6 : character.level >= 13 ? 5 : character.level >= 9 ? 4 : 2} slots
-                </span>
                 <button
                   onClick={() => removeCharacter(character.id)}
                   className="ml-2 text-red-500 hover:text-red-700 text-xs"
@@ -581,7 +578,7 @@ function App() {
           
           <div className="text-sm text-gray-600">
             <span>
-              Total Special Facility Slots: <span className="font-medium text-gray-900">{specialFacilities.length}/{getTotalSpecialSlots()}</span>
+              Special Facility Slots Available: <span className="font-medium text-gray-900">{specialFacilities.length}/{getTotalSpecialSlots()}</span>
             </span>
           </div>
         </div>
