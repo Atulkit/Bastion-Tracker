@@ -793,9 +793,6 @@ function App() {
                             <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
                               {facility.order}
                             </span>
-                            <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
-                              Owner: {facility.ownerName}
-                            </span>
                           </div>
                           <p className="text-gray-600 text-sm mb-2">{facility.description}</p>
                           {facility.prerequisite !== 'None' && (
