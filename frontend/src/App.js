@@ -589,7 +589,7 @@ function App() {
         {/* Navigation */}
         <nav className="mb-6">
           <div className="flex space-x-1 bg-gray-200 rounded-lg p-1">
-            {['party', 'overview', 'facilities', 'resources', 'turns'].map((tab) => (
+            {['party', 'overview', 'facilities', 'hirelings', 'resources', 'turns'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
