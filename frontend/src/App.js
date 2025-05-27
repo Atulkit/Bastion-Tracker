@@ -493,14 +493,13 @@ function App() {
     ));
   };
 
-  // Calculate total special facility slots available to the party
+  // Calculate special facility slots based on highest level character in party
   const getTotalSpecialSlots = () => {
-    return party.reduce((total, char) => {
-      if (char.level >= 17) return total + 6;
-      if (char.level >= 13) return total + 5;
-      if (char.level >= 9) return total + 4;
-      return total + 2;
-    }, 0);
+    const maxLevel = Math.max(...party.map(char => char.level), 5);
+    if (maxLevel >= 17) return 6;
+    if (maxLevel >= 13) return 5;
+    if (maxLevel >= 9) return 4;
+    return 2;
   };
 
   // Get available special facilities based on party levels and prerequisites
