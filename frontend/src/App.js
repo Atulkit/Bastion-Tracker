@@ -873,6 +873,125 @@ function App() {
           </div>
         )}
 
+        {/* Hirelings Tab */}
+        {activeTab === 'hirelings' && (
+          <div className="bg-white rounded-lg shadow-sm border p-6">
+            <h3 className="text-lg font-semibold mb-4">Bastion Hirelings</h3>
+            
+            {/* Overview */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4 mb-6">
+              <h4 className="font-medium text-blue-900 mb-2">Hireling Overview</h4>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4 text-sm">
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-blue-600">
+                    {basicFacilities.length + specialFacilities.reduce((sum, f) => sum + (typeof f.hirelings === 'number' ? f.hirelings : 1), 0)}
+                  </p>
+                  <p className="text-blue-800">Total Hirelings</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-green-600">{specialFacilities.length}</p>
+                  <p className="text-blue-800">Special Facilities</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-purple-600">{basicFacilities.length}</p>
+                  <p className="text-blue-800">Basic Facilities</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-2xl font-bold text-orange-600">
+                    {basicFacilities.length + specialFacilities.length}
+                  </p>
+                  <p className="text-blue-800">Total Facilities</p>
+                </div>
+              </div>
+            </div>
+
+            {/* Special Facility Hirelings */}
+            <div className="mb-6">
+              <h4 className="font-medium mb-3">Special Facility Hirelings</h4>
+              {specialFacilities.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No special facilities with hirelings yet</p>
+              ) : (
+                <div className="space-y-3">
+                  {specialFacilities.map((facility) => (
+                    <div key={facility.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <h5 className="font-medium text-lg">{facility.name}</h5>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                              {facility.order} Orders
+                            </span>
+                            <span className="px-2 py-1 bg-purple-100 text-purple-800 text-xs rounded-full">
+                              {facility.hirelings} Hireling{facility.hirelings > 1 ? 's' : ''}
+                            </span>
+                          </div>
+                          <p className="text-gray-600 text-sm mb-2">{facility.description}</p>
+                          <div className="text-sm text-gray-500">
+                            <p><span className="font-medium">Duties:</span> Maintain the {facility.name}, execute {facility.order} orders</p>
+                            <p><span className="font-medium">Skills:</span> 
+                              {facility.order === 'Craft' && ' Proficiency with facility tools, crafting expertise'}
+                              {facility.order === 'Trade' && ' Commerce, negotiation, market knowledge'}
+                              {facility.order === 'Research' && ' Investigation, lore knowledge, academic research'}
+                              {facility.order === 'Recruit' && ' Leadership, persuasion, military knowledge'}
+                              {facility.order === 'Harvest' && ' Nature knowledge, resource gathering, cultivation'}
+                              {facility.order === 'Empower' && ' Specialized training, empowerment techniques'}
+                            </p>
+                          </div>
+                        </div>
+                        <div className="ml-4">
+                          <button
+                            onClick={() => setSelectedFacility(facility)}
+                            className="px-3 py-1 bg-gray-100 text-gray-700 rounded hover:bg-gray-200 text-sm"
+                          >
+                            Facility Details
+                          </button>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Basic Facility Hirelings */}
+            <div>
+              <h4 className="font-medium mb-3">Basic Facility Caretakers</h4>
+              {basicFacilities.length === 0 ? (
+                <p className="text-gray-500 text-center py-4">No basic facilities yet</p>
+              ) : (
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-3">
+                  {basicFacilities.map((facility) => (
+                    <div key={facility.id} className="border rounded-lg p-3 hover:bg-gray-50">
+                      <div className="flex items-center justify-between mb-2">
+                        <h5 className="font-medium">{facility.name}</h5>
+                        <span className="px-2 py-1 bg-gray-100 text-gray-800 text-xs rounded-full">
+                          1 Caretaker
+                        </span>
+                      </div>
+                      <div className="text-sm text-gray-600">
+                        <p><span className="font-medium">Duties:</span> Maintain and clean the {facility.name.toLowerCase()}</p>
+                        <p><span className="font-medium">Space:</span> {facility.space} ({SPACE_LIMITS[facility.space]} squares)</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            {/* Hireling Management Notes */}
+            <div className="mt-6 bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+              <h4 className="font-medium text-yellow-900 mb-2">Hireling Management Notes</h4>
+              <div className="text-sm text-yellow-800 space-y-1">
+                <p>• Each facility generates enough income to pay its hirelings' salaries</p>
+                <p>• Hirelings are loyal to the bastion and follow orders from any party member</p>
+                <p>• Special facility hirelings have proficiencies related to their facility's function</p>
+                <p>• Basic facility hirelings primarily handle maintenance and upkeep</p>
+                <p>• Hirelings cannot be shared between facilities or reassigned</p>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Resources Tab */}
         {activeTab === 'resources' && (
           <div className="bg-white rounded-lg shadow-sm border p-6">
