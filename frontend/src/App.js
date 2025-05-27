@@ -358,24 +358,84 @@ const FACILITY_COSTS = {
   'Vast': { cost: 3000, time: 125 }
 };
 
-const ENLARGEMENT_COSTS = {
-  'Cramped to Roomy': { cost: 500, time: 25 },
-  'Roomy to Vast': { cost: 2000, time: 80 }
-};
-
 function App() {
-  const [characterLevel, setCharacterLevel] = useState(5);
-  const [characterGold, setCharacterGold] = useState(1000);
-  const [bastionDefenders, setBastionDefenders] = useState(0);
-  const [bastionTurn, setBastionTurn] = useState(1);
-  const [basicFacilities, setBasicFacilities] = useState([
-    { name: 'Bedroom', space: 'Cramped', id: 1 },
-    { name: 'Kitchen', space: 'Roomy', id: 2 }
-  ]);
-  const [specialFacilities, setSpecialFacilities] = useState([]);
+  // Party Management
+  const [party, setParty] = useState([]);
+  const [activeCharacterId, setActiveCharacterId] = useState(null);
+  const [showAddCharacter, setShowAddCharacter] = useState(false);
+  const [newCharacterName, setNewCharacterName] = useState('');
+  const [combinedBastion, setCombinedBastion] = useState(false);
+
+  // Single character states (for active character)
   const [selectedFacility, setSelectedFacility] = useState(null);
   const [showAddFacility, setShowAddFacility] = useState(false);
-  const [activeTab, setActiveTab] = useState('overview');
+  const [activeTab, setActiveTab] = useState('party');
+
+  // Load party from localStorage on mount
+  useEffect(() => {
+    const savedParty = localStorage.getItem('dnd-bastion-party');
+    if (savedParty) {
+      const partyData = JSON.parse(savedParty);
+      setParty(partyData);
+      if (partyData.length > 0) {
+        setActiveCharacterId(partyData[0].id);
+      }
+    }
+  }, []);
+
+  // Save party to localStorage whenever it changes
+  useEffect(() => {
+    if (party.length > 0) {
+      localStorage.setItem('dnd-bastion-party', JSON.stringify(party));
+    }
+  }, [party]);
+
+  // Get active character
+  const activeCharacter = party.find(char => char.id === activeCharacterId);
+
+  // Add new character
+  const addCharacter = () => {
+    if (newCharacterName.trim() && party.length < 6) {
+      const newCharacter = {
+        id: Date.now(),
+        name: newCharacterName.trim(),
+        level: 5,
+        gold: 1000,
+        bastionDefenders: 0,
+        bastionTurn: 1,
+        basicFacilities: [
+          { name: 'Bedroom', space: 'Cramped', id: Date.now() + 1 },
+          { name: 'Kitchen', space: 'Roomy', id: Date.now() + 2 }
+        ],
+        specialFacilities: []
+      };
+      const updatedParty = [...party, newCharacter];
+      setParty(updatedParty);
+      setActiveCharacterId(newCharacter.id);
+      setNewCharacterName('');
+      setShowAddCharacter(false);
+      setActiveTab('overview');
+    }
+  };
+
+  // Remove character
+  const removeCharacter = (characterId) => {
+    const updatedParty = party.filter(char => char.id !== characterId);
+    setParty(updatedParty);
+    if (activeCharacterId === characterId) {
+      setActiveCharacterId(updatedParty.length > 0 ? updatedParty[0].id : null);
+    }
+  };
+
+  // Update active character
+  const updateActiveCharacter = (updates) => {
+    if (!activeCharacterId) return;
+    setParty(party.map(char => 
+      char.id === activeCharacterId 
+        ? { ...char, ...updates }
+        : char
+    ));
+  };
 
   // Calculate special facility slots based on level
   const getSpecialFacilitySlots = (level) => {
@@ -387,206 +447,443 @@ function App() {
 
   // Get available special facilities based on level and prerequisites
   const getAvailableSpecialFacilities = () => {
+    if (!activeCharacter) return [];
     return SPECIAL_FACILITIES.filter(facility => 
-      facility.level <= characterLevel &&
-      !specialFacilities.find(sf => sf.name === facility.name)
+      facility.level <= activeCharacter.level &&
+      !activeCharacter.specialFacilities.find(sf => sf.name === facility.name)
     );
   };
 
   // Add special facility
   const addSpecialFacility = (facility) => {
-    if (specialFacilities.length < getSpecialFacilitySlots(characterLevel)) {
-      setSpecialFacilities([...specialFacilities, {
+    if (!activeCharacter) return;
+    if (activeCharacter.specialFacilities.length < getSpecialFacilitySlots(activeCharacter.level)) {
+      const updatedFacilities = [...activeCharacter.specialFacilities, {
         ...facility,
         id: Date.now()
-      }]);
+      }];
+      updateActiveCharacter({ specialFacilities: updatedFacilities });
       setShowAddFacility(false);
     }
   };
 
   // Remove special facility
   const removeSpecialFacility = (id) => {
-    setSpecialFacilities(specialFacilities.filter(f => f.id !== id));
+    if (!activeCharacter) return;
+    const updatedFacilities = activeCharacter.specialFacilities.filter(f => f.id !== id);
+    updateActiveCharacter({ specialFacilities: updatedFacilities });
   };
 
   // Add basic facility
   const addBasicFacility = (facilityName, space) => {
+    if (!activeCharacter) return;
     const cost = FACILITY_COSTS[space].cost;
-    if (characterGold >= cost) {
-      setBasicFacilities([...basicFacilities, {
+    if (activeCharacter.gold >= cost) {
+      const updatedBasicFacilities = [...activeCharacter.basicFacilities, {
         name: facilityName,
         space: space,
         id: Date.now()
-      }]);
-      setCharacterGold(characterGold - cost);
+      }];
+      updateActiveCharacter({ 
+        basicFacilities: updatedBasicFacilities,
+        gold: activeCharacter.gold - cost
+      });
     }
   };
 
   // Remove basic facility
   const removeBasicFacility = (id) => {
-    setBasicFacilities(basicFacilities.filter(f => f.id !== id));
+    if (!activeCharacter) return;
+    const updatedBasicFacilities = activeCharacter.basicFacilities.filter(f => f.id !== id);
+    updateActiveCharacter({ basicFacilities: updatedBasicFacilities });
   };
+
+  // Calculate party totals for combined view
+  const getPartyTotals = () => {
+    return party.reduce((totals, char) => ({
+      totalGold: totals.totalGold + char.gold,
+      totalDefenders: totals.totalDefenders + char.bastionDefenders,
+      totalFacilities: totals.totalFacilities + char.basicFacilities.length + char.specialFacilities.length,
+      totalHirelings: totals.totalHirelings + char.basicFacilities.length + 
+        char.specialFacilities.reduce((sum, f) => sum + (typeof f.hirelings === 'number' ? f.hirelings : 1), 0),
+      totalSquares: totals.totalSquares + 
+        [...char.basicFacilities, ...char.specialFacilities].reduce((sum, f) => sum + SPACE_LIMITS[f.space], 0)
+    }), {
+      totalGold: 0,
+      totalDefenders: 0,
+      totalFacilities: 0,
+      totalHirelings: 0,
+      totalSquares: 0
+    });
+  };
+
+  if (party.length === 0) {
+    return (
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="bg-white rounded-lg shadow-lg p-8 max-w-md w-full mx-4">
+          <h1 className="text-3xl font-bold text-gray-900 mb-4 text-center">D&D 2024 Bastion Tracker</h1>
+          <p className="text-gray-600 mb-6 text-center">Create your first character to start managing bastions</p>
+          
+          <div className="space-y-4">
+            <input
+              type="text"
+              placeholder="Character Name"
+              value={newCharacterName}
+              onChange={(e) => setNewCharacterName(e.target.value)}
+              className="w-full border border-gray-300 rounded-md px-3 py-2"
+              onKeyPress={(e) => e.key === 'Enter' && addCharacter()}
+            />
+            <button
+              onClick={addCharacter}
+              disabled={!newCharacterName.trim()}
+              className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+            >
+              Create Character
+            </button>
+          </div>
+          
+          <div className="mt-6 text-sm text-gray-500 text-center">
+            <p>Supports up to 6 characters</p>
+            <p>Each character gets their own bastion at level 5</p>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-gray-50">
       <div className="container mx-auto px-4 py-6">
-        <header className="mb-8">
+        <header className="mb-6">
           <h1 className="text-4xl font-bold text-gray-900 mb-2">D&D 2024 Bastion Tracker</h1>
-          <p className="text-gray-600">Manage your character's bastion, facilities, and resources</p>
+          <p className="text-gray-600">Party Management • {party.length}/6 Characters</p>
         </header>
+
+        {/* Character Selection */}
+        <div className="bg-white rounded-lg shadow-sm border p-4 mb-6">
+          <div className="flex flex-wrap items-center gap-2 mb-3">
+            <span className="text-sm font-medium text-gray-700">Active Character:</span>
+            {party.map((character) => (
+              <button
+                key={character.id}
+                onClick={() => {
+                  setActiveCharacterId(character.id);
+                  if (activeTab === 'party') setActiveTab('overview');
+                }}
+                className={`px-3 py-1 rounded-md text-sm font-medium transition-colors ${
+                  activeCharacterId === character.id
+                    ? 'bg-blue-600 text-white'
+                    : 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                }`}
+              >
+                {character.name} (Lvl {character.level})
+              </button>
+            ))}
+            {party.length < 6 && (
+              <button
+                onClick={() => setShowAddCharacter(true)}
+                className="px-3 py-1 bg-green-100 text-green-700 rounded-md hover:bg-green-200 text-sm font-medium"
+              >
+                + Add Character
+              </button>
+            )}
+          </div>
+          
+          {activeCharacter && (
+            <div className="flex items-center justify-between text-sm text-gray-600">
+              <span>
+                Playing as: <span className="font-medium text-gray-900">{activeCharacter.name}</span>
+              </span>
+              <button
+                onClick={() => removeCharacter(activeCharacter.id)}
+                className="px-2 py-1 bg-red-100 text-red-700 rounded hover:bg-red-200 text-xs"
+              >
+                Remove Character
+              </button>
+            </div>
+          )}
+        </div>
 
         {/* Navigation */}
         <nav className="mb-6">
           <div className="flex space-x-1 bg-gray-200 rounded-lg p-1">
-            {['overview', 'facilities', 'resources', 'turns'].map((tab) => (
+            {['party', 'overview', 'facilities', 'resources', 'turns'].map((tab) => (
               <button
                 key={tab}
                 onClick={() => setActiveTab(tab)}
+                disabled={tab !== 'party' && !activeCharacter}
                 className={`px-4 py-2 rounded-md capitalize font-medium transition-colors ${
                   activeTab === tab
                     ? 'bg-white text-blue-600 shadow-sm'
-                    : 'text-gray-600 hover:text-gray-900'
+                    : 'text-gray-600 hover:text-gray-900 disabled:text-gray-400'
                 }`}
               >
-                {tab}
+                {tab === 'party' ? 'Party Overview' : tab}
               </button>
             ))}
           </div>
         </nav>
 
-        {/* Character Info */}
-        <div className="bg-white rounded-lg shadow-sm border p-6 mb-6">
-          <h2 className="text-xl font-semibold mb-4">Character Information</h2>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Character Level</label>
-              <select
-                value={characterLevel}
-                onChange={(e) => setCharacterLevel(parseInt(e.target.value))}
-                className="w-full border border-gray-300 rounded-md px-3 py-2"
-              >
-                <option value={5}>Level 5</option>
-                <option value={9}>Level 9</option>
-                <option value={13}>Level 13</option>
-                <option value={17}>Level 17</option>
-              </select>
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Gold (GP)</label>
-              <input
-                type="number"
-                value={characterGold}
-                onChange={(e) => setCharacterGold(parseInt(e.target.value) || 0)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bastion Defenders</label>
-              <input
-                type="number"
-                value={bastionDefenders}
-                onChange={(e) => setBastionDefenders(parseInt(e.target.value) || 0)}
-                className="w-full border border-gray-300 rounded-md px-3 py-2"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Bastion Turn</label>
-              <div className="flex space-x-2">
-                <input
-                  type="number"
-                  value={bastionTurn}
-                  onChange={(e) => setBastionTurn(parseInt(e.target.value) || 1)}
-                  className="flex-1 border border-gray-300 rounded-md px-3 py-2"
-                />
-                <button
-                  onClick={() => setBastionTurn(bastionTurn + 1)}
-                  className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
-                >
-                  Next
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Content based on active tab */}
-        {activeTab === 'overview' && (
-          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Bastion Summary */}
+        {/* Party Overview Tab */}
+        {activeTab === 'party' && (
+          <div className="space-y-6">
+            {/* Party Summary */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h3 className="text-lg font-semibold mb-4">Bastion Summary</h3>
-              <div className="space-y-3">
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Special Facility Slots:</span>
-                  <span className="font-medium">{specialFacilities.length} / {getSpecialFacilitySlots(characterLevel)}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Basic Facilities:</span>
-                  <span className="font-medium">{basicFacilities.length}</span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Total Hirelings:</span>
-                  <span className="font-medium">
-                    {basicFacilities.length + specialFacilities.reduce((sum, f) => sum + (typeof f.hirelings === 'number' ? f.hirelings : 1), 0)}
-                  </span>
-                </div>
-                <div className="flex justify-between">
-                  <span className="text-gray-600">Total Space Used:</span>
-                  <span className="font-medium">
-                    {[...basicFacilities, ...specialFacilities].reduce((sum, f) => sum + SPACE_LIMITS[f.space], 0)} squares
-                  </span>
-                </div>
+              <div className="flex justify-between items-center mb-4">
+                <h3 className="text-lg font-semibold">Party Summary</h3>
+                <label className="flex items-center space-x-2">
+                  <input
+                    type="checkbox"
+                    checked={combinedBastion}
+                    onChange={(e) => setCombinedBastion(e.target.checked)}
+                    className="rounded"
+                  />
+                  <span className="text-sm text-gray-700">Combined Bastion View</span>
+                </label>
               </div>
+              
+              {combinedBastion ? (
+                <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
+                  {(() => {
+                    const totals = getPartyTotals();
+                    return (
+                      <>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-blue-600">{totals.totalGold}</p>
+                          <p className="text-sm text-gray-600">Total Gold</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-green-600">{totals.totalDefenders}</p>
+                          <p className="text-sm text-gray-600">Total Defenders</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-purple-600">{totals.totalFacilities}</p>
+                          <p className="text-sm text-gray-600">Total Facilities</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-orange-600">{totals.totalHirelings}</p>
+                          <p className="text-sm text-gray-600">Total Hirelings</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-2xl font-bold text-gray-600">{totals.totalSquares}</p>
+                          <p className="text-sm text-gray-600">Total Squares</p>
+                        </div>
+                      </>
+                    );
+                  })()}
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {party.map((character) => (
+                    <div key={character.id} className="border rounded-lg p-4 hover:bg-gray-50">
+                      <div className="flex justify-between items-start">
+                        <div className="flex-1">
+                          <div className="flex items-center space-x-3 mb-2">
+                            <h4 className="font-medium text-lg">{character.name}</h4>
+                            <span className="px-2 py-1 bg-blue-100 text-blue-800 text-xs rounded-full">
+                              Level {character.level}
+                            </span>
+                            <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
+                              Turn {character.bastionTurn}
+                            </span>
+                          </div>
+                          <div className="grid grid-cols-2 md:grid-cols-5 gap-3 text-sm">
+                            <div>
+                              <span className="text-gray-600">Gold:</span>
+                              <span className="font-medium ml-1">{character.gold} GP</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Defenders:</span>
+                              <span className="font-medium ml-1">{character.bastionDefenders}</span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Facilities:</span>
+                              <span className="font-medium ml-1">
+                                {character.specialFacilities.length}/{getSpecialFacilitySlots(character.level)} Special,{' '}
+                                {character.basicFacilities.length} Basic
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Hirelings:</span>
+                              <span className="font-medium ml-1">
+                                {character.basicFacilities.length + 
+                                 character.specialFacilities.reduce((sum, f) => sum + (typeof f.hirelings === 'number' ? f.hirelings : 1), 0)}
+                              </span>
+                            </div>
+                            <div>
+                              <span className="text-gray-600">Space:</span>
+                              <span className="font-medium ml-1">
+                                {[...character.basicFacilities, ...character.specialFacilities]
+                                  .reduce((sum, f) => sum + SPACE_LIMITS[f.space], 0)} sq
+                              </span>
+                            </div>
+                          </div>
+                        </div>
+                        <button
+                          onClick={() => {
+                            setActiveCharacterId(character.id);
+                            setActiveTab('overview');
+                          }}
+                          className="px-3 py-1 bg-blue-100 text-blue-700 rounded hover:bg-blue-200 text-sm"
+                        >
+                          Manage
+                        </button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
 
-            {/* Quick Actions */}
-            <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
-              <div className="space-y-3">
-                <button
-                  onClick={() => setShowAddFacility(true)}
-                  disabled={specialFacilities.length >= getSpecialFacilitySlots(characterLevel)}
-                  className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
-                >
-                  Add Special Facility ({specialFacilities.length}/{getSpecialFacilitySlots(characterLevel)})
-                </button>
-                <button
-                  onClick={() => setActiveTab('turns')}
-                  className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
-                >
-                  Advance Bastion Turn
-                </button>
-                <button
-                  onClick={() => setActiveTab('facilities')}
-                  className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
-                >
-                  Manage Facilities
-                </button>
+            {/* Combined Bastion Rules */}
+            <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
+              <h4 className="font-medium text-blue-900 mb-2">Combined Bastion Rules</h4>
+              <div className="text-sm text-blue-800 space-y-1">
+                <p>• Multiple characters can combine bastions into a single structure</p>
+                <p>• Each bastion retains its own facilities, hirelings, and orders</p>
+                <p>• Bastion Defenders can be shared between combined bastions during attacks</p>
+                <p>• Each character still issues orders to their own facilities independently</p>
               </div>
             </div>
           </div>
         )}
 
-        {activeTab === 'facilities' && (
+        {/* Individual Character Tabs (only if activeCharacter exists) */}
+        {activeCharacter && activeTab === 'overview' && (
+          <div className="space-y-6">
+            {/* Character Info */}
+            <div className="bg-white rounded-lg shadow-sm border p-6">
+              <h2 className="text-xl font-semibold mb-4">{activeCharacter.name}'s Bastion</h2>
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Character Level</label>
+                  <select
+                    value={activeCharacter.level}
+                    onChange={(e) => updateActiveCharacter({ level: parseInt(e.target.value) })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  >
+                    <option value={5}>Level 5</option>
+                    <option value={9}>Level 9</option>
+                    <option value={13}>Level 13</option>
+                    <option value={17}>Level 17</option>
+                  </select>
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Gold (GP)</label>
+                  <input
+                    type="number"
+                    value={activeCharacter.gold}
+                    onChange={(e) => updateActiveCharacter({ gold: parseInt(e.target.value) || 0 })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bastion Defenders</label>
+                  <input
+                    type="number"
+                    value={activeCharacter.bastionDefenders}
+                    onChange={(e) => updateActiveCharacter({ bastionDefenders: parseInt(e.target.value) || 0 })}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bastion Turn</label>
+                  <div className="flex space-x-2">
+                    <input
+                      type="number"
+                      value={activeCharacter.bastionTurn}
+                      onChange={(e) => updateActiveCharacter({ bastionTurn: parseInt(e.target.value) || 1 })}
+                      className="flex-1 border border-gray-300 rounded-md px-3 py-2"
+                    />
+                    <button
+                      onClick={() => updateActiveCharacter({ bastionTurn: activeCharacter.bastionTurn + 1 })}
+                      className="px-3 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700"
+                    >
+                      Next
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+              {/* Bastion Summary */}
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <h3 className="text-lg font-semibold mb-4">Bastion Summary</h3>
+                <div className="space-y-3">
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Special Facility Slots:</span>
+                    <span className="font-medium">{activeCharacter.specialFacilities.length} / {getSpecialFacilitySlots(activeCharacter.level)}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Basic Facilities:</span>
+                    <span className="font-medium">{activeCharacter.basicFacilities.length}</span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Hirelings:</span>
+                    <span className="font-medium">
+                      {activeCharacter.basicFacilities.length + activeCharacter.specialFacilities.reduce((sum, f) => sum + (typeof f.hirelings === 'number' ? f.hirelings : 1), 0)}
+                    </span>
+                  </div>
+                  <div className="flex justify-between">
+                    <span className="text-gray-600">Total Space Used:</span>
+                    <span className="font-medium">
+                      {[...activeCharacter.basicFacilities, ...activeCharacter.specialFacilities].reduce((sum, f) => sum + SPACE_LIMITS[f.space], 0)} squares
+                    </span>
+                  </div>
+                </div>
+              </div>
+
+              {/* Quick Actions */}
+              <div className="bg-white rounded-lg shadow-sm border p-6">
+                <h3 className="text-lg font-semibold mb-4">Quick Actions</h3>
+                <div className="space-y-3">
+                  <button
+                    onClick={() => setShowAddFacility(true)}
+                    disabled={activeCharacter.specialFacilities.length >= getSpecialFacilitySlots(activeCharacter.level)}
+                    className="w-full px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400 disabled:cursor-not-allowed"
+                  >
+                    Add Special Facility ({activeCharacter.specialFacilities.length}/{getSpecialFacilitySlots(activeCharacter.level)})
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('turns')}
+                    className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
+                  >
+                    Advance Bastion Turn
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('facilities')}
+                    className="w-full px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700"
+                  >
+                    Manage Facilities
+                  </button>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Facilities Tab */}
+        {activeCharacter && activeTab === 'facilities' && (
           <div className="space-y-6">
             {/* Special Facilities */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
               <div className="flex justify-between items-center mb-4">
-                <h3 className="text-lg font-semibold">Special Facilities ({specialFacilities.length}/{getSpecialFacilitySlots(characterLevel)})</h3>
+                <h3 className="text-lg font-semibold">Special Facilities ({activeCharacter.specialFacilities.length}/{getSpecialFacilitySlots(activeCharacter.level)})</h3>
                 <button
                   onClick={() => setShowAddFacility(true)}
-                  disabled={specialFacilities.length >= getSpecialFacilitySlots(characterLevel)}
+                  disabled={activeCharacter.specialFacilities.length >= getSpecialFacilitySlots(activeCharacter.level)}
                   className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
                 >
                   Add Facility
                 </button>
               </div>
               
-              {specialFacilities.length === 0 ? (
+              {activeCharacter.specialFacilities.length === 0 ? (
                 <p className="text-gray-500 text-center py-8">No special facilities added yet</p>
               ) : (
                 <div className="space-y-3">
-                  {specialFacilities.map((facility) => (
+                  {activeCharacter.specialFacilities.map((facility) => (
                     <div key={facility.id} className="border rounded-lg p-4 hover:bg-gray-50">
                       <div className="flex justify-between items-start">
                         <div className="flex-1">
@@ -635,10 +932,10 @@ function App() {
 
             {/* Basic Facilities */}
             <div className="bg-white rounded-lg shadow-sm border p-6">
-              <h3 className="text-lg font-semibold mb-4">Basic Facilities ({basicFacilities.length})</h3>
+              <h3 className="text-lg font-semibold mb-4">Basic Facilities ({activeCharacter.basicFacilities.length})</h3>
               
               <div className="space-y-3 mb-4">
-                {basicFacilities.map((facility) => (
+                {activeCharacter.basicFacilities.map((facility) => (
                   <div key={facility.id} className="flex justify-between items-center border rounded-lg p-3">
                     <div>
                       <span className="font-medium">{facility.name}</span>
@@ -666,7 +963,7 @@ function App() {
                           <button
                             key={space}
                             onClick={() => addBasicFacility(facility.name, space)}
-                            disabled={characterGold < cost}
+                            disabled={activeCharacter.gold < cost}
                             className="w-full text-xs px-2 py-1 bg-blue-50 text-blue-700 rounded hover:bg-blue-100 disabled:bg-gray-100 disabled:text-gray-400"
                           >
                             {space}: {cost} GP, {time} days
@@ -681,16 +978,17 @@ function App() {
           </div>
         )}
 
-        {activeTab === 'resources' && (
+        {/* Resources Tab */}
+        {activeCharacter && activeTab === 'resources' && (
           <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h3 className="text-lg font-semibold mb-4">Resource Management</h3>
+            <h3 className="text-lg font-semibold mb-4">{activeCharacter.name}'s Resources</h3>
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               <div className="space-y-4">
                 <h4 className="font-medium">Financials</h4>
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Current Gold:</span>
-                    <span className="font-medium">{characterGold} GP</span>
+                    <span className="font-medium">{activeCharacter.gold} GP</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Facility Maintenance:</span>
@@ -704,12 +1002,12 @@ function App() {
                 <div className="space-y-2">
                   <div className="flex justify-between">
                     <span>Bastion Defenders:</span>
-                    <span className="font-medium">{bastionDefenders}</span>
+                    <span className="font-medium">{activeCharacter.bastionDefenders}</span>
                   </div>
                   <div className="flex justify-between">
                     <span>Total Hirelings:</span>
                     <span className="font-medium">
-                      {basicFacilities.length + specialFacilities.reduce((sum, f) => sum + (typeof f.hirelings === 'number' ? f.hirelings : 1), 0)}
+                      {activeCharacter.basicFacilities.length + activeCharacter.specialFacilities.reduce((sum, f) => sum + (typeof f.hirelings === 'number' ? f.hirelings : 1), 0)}
                     </span>
                   </div>
                 </div>
@@ -721,12 +1019,12 @@ function App() {
                   <div className="flex justify-between">
                     <span>Total Squares:</span>
                     <span className="font-medium">
-                      {[...basicFacilities, ...specialFacilities].reduce((sum, f) => sum + SPACE_LIMITS[f.space], 0)}
+                      {[...activeCharacter.basicFacilities, ...activeCharacter.specialFacilities].reduce((sum, f) => sum + SPACE_LIMITS[f.space], 0)}
                     </span>
                   </div>
                   <div className="flex justify-between">
                     <span>Facilities:</span>
-                    <span className="font-medium">{basicFacilities.length + specialFacilities.length}</span>
+                    <span className="font-medium">{activeCharacter.basicFacilities.length + activeCharacter.specialFacilities.length}</span>
                   </div>
                 </div>
               </div>
@@ -734,12 +1032,13 @@ function App() {
           </div>
         )}
 
-        {activeTab === 'turns' && (
+        {/* Turns Tab */}
+        {activeCharacter && activeTab === 'turns' && (
           <div className="bg-white rounded-lg shadow-sm border p-6">
-            <h3 className="text-lg font-semibold mb-4">Bastion Turn Management</h3>
+            <h3 className="text-lg font-semibold mb-4">{activeCharacter.name}'s Bastion Turn Management</h3>
             <div className="space-y-6">
               <div className="bg-blue-50 border border-blue-200 rounded-lg p-4">
-                <h4 className="font-medium text-blue-900 mb-2">Current Bastion Turn: {bastionTurn}</h4>
+                <h4 className="font-medium text-blue-900 mb-2">Current Bastion Turn: {activeCharacter.bastionTurn}</h4>
                 <p className="text-blue-700 text-sm">
                   Bastion turns occur every 7 days of in-game time. Issue orders to your special facilities or use the Maintain order.
                 </p>
@@ -784,10 +1083,10 @@ function App() {
                   <h4 className="font-medium mb-3">Turn Actions</h4>
                   <div className="space-y-3">
                     <button
-                      onClick={() => setBastionTurn(bastionTurn + 1)}
+                      onClick={() => updateActiveCharacter({ bastionTurn: activeCharacter.bastionTurn + 1 })}
                       className="w-full px-4 py-2 bg-green-600 text-white rounded-md hover:bg-green-700"
                     >
-                      Advance to Turn {bastionTurn + 1}
+                      Advance to Turn {activeCharacter.bastionTurn + 1}
                     </button>
                     <button
                       onClick={() => {
@@ -805,7 +1104,7 @@ function App() {
                         else if (roll >= 92 && roll <= 98) event = "Request for Aid";
                         else if (roll >= 99) event = "Treasure";
                         
-                        alert(`Bastion Event (d100: ${roll}): ${event}\n\nConsult the Bastion Events table in your DM's Guide for details.`);
+                        alert(`${activeCharacter.name}'s Bastion Event (d100: ${roll}): ${event}\n\nConsult the Bastion Events table in your DM's Guide for details.`);
                       }}
                       className="w-full px-4 py-2 bg-orange-600 text-white rounded-md hover:bg-orange-700"
                     >
@@ -821,8 +1120,52 @@ function App() {
           </div>
         )}
 
+        {/* Add Character Modal */}
+        {showAddCharacter && (
+          <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
+            <div className="bg-white rounded-lg max-w-md w-full">
+              <div className="p-6">
+                <div className="flex justify-between items-center mb-4">
+                  <h3 className="text-lg font-semibold">Add New Character</h3>
+                  <button
+                    onClick={() => setShowAddCharacter(false)}
+                    className="text-gray-400 hover:text-gray-600"
+                  >
+                    ✕
+                  </button>
+                </div>
+                <div className="space-y-4">
+                  <input
+                    type="text"
+                    placeholder="Character Name"
+                    value={newCharacterName}
+                    onChange={(e) => setNewCharacterName(e.target.value)}
+                    className="w-full border border-gray-300 rounded-md px-3 py-2"
+                    onKeyPress={(e) => e.key === 'Enter' && addCharacter()}
+                  />
+                  <div className="flex space-x-3">
+                    <button
+                      onClick={() => setShowAddCharacter(false)}
+                      className="flex-1 px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50"
+                    >
+                      Cancel
+                    </button>
+                    <button
+                      onClick={addCharacter}
+                      disabled={!newCharacterName.trim()}
+                      className="flex-1 px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 disabled:bg-gray-400"
+                    >
+                      Add Character
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* Add Facility Modal */}
-        {showAddFacility && (
+        {showAddFacility && activeCharacter && (
           <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center p-4 z-50">
             <div className="bg-white rounded-lg max-w-4xl w-full max-h-96 overflow-y-auto">
               <div className="p-6">
