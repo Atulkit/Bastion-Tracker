@@ -619,11 +619,8 @@ function App() {
                             Level {character.level}
                           </span>
                           <span className="px-2 py-1 bg-green-100 text-green-800 text-xs rounded-full">
-                            {character.usedSpecialSlots}/{character.level >= 17 ? 6 : character.level >= 13 ? 5 : character.level >= 9 ? 4 : 2} Facilities
+                            Contributes {character.level >= 17 ? 6 : character.level >= 13 ? 5 : character.level >= 9 ? 4 : 2} Facility Slots
                           </span>
-                        </div>
-                        <div className="text-sm text-gray-600">
-                          Contributed Facilities: {specialFacilities.filter(f => f.ownerId === character.id).map(f => f.name).join(', ') || 'None'}
                         </div>
                       </div>
                       <div className="flex space-x-2">
