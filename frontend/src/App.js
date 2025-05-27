@@ -401,12 +401,10 @@ function App() {
   // Load data from localStorage on mount
   useEffect(() => {
     const savedData = localStorage.getItem('dnd-shared-bastion');
-    console.log('Loading saved data:', savedData); // Debug log
-    if (savedData) {
+    if (savedData && savedData !== 'undefined' && savedData !== 'null') {
       try {
         const data = JSON.parse(savedData);
-        console.log('Parsed data:', data); // Debug log
-        if (data.party && Array.isArray(data.party) && data.party.length > 0) {
+        if (data && data.party && Array.isArray(data.party) && data.party.length > 0) {
           setParty(data.party);
           setBastionGold(data.bastionGold || 5000);
           setBastionDefenders(data.bastionDefenders || 0);
@@ -428,16 +426,11 @@ function App() {
             }
           ]);
           setSpecialFacilities(data.specialFacilities || []);
-          console.log('Data loaded successfully'); // Debug log
-        } else {
-          console.log('No valid party data found'); // Debug log
         }
       } catch (error) {
         console.error('Error loading bastion data:', error);
         localStorage.removeItem('dnd-shared-bastion');
       }
-    } else {
-      console.log('No saved data found'); // Debug log
     }
   }, []);
 
