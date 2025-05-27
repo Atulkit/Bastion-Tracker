@@ -424,8 +424,7 @@ function App() {
       const newCharacter = {
         id: Date.now(),
         name: newCharacterName.trim(),
-        level: 5,
-        usedSpecialSlots: 0 // Track how many special facilities this character has added
+        level: 5
       };
       setParty([...party, newCharacter]);
       setNewCharacterName('');
@@ -438,13 +437,6 @@ function App() {
 
   // Remove character
   const removeCharacter = (characterId) => {
-    // Remove facilities owned by this character
-    const removedCharacter = party.find(c => c.id === characterId);
-    if (removedCharacter) {
-      const updatedSpecialFacilities = specialFacilities.filter(f => f.ownerId !== characterId);
-      setSpecialFacilities(updatedSpecialFacilities);
-    }
-    
     setParty(party.filter(char => char.id !== characterId));
   };
 
@@ -476,33 +468,20 @@ function App() {
     );
   };
 
-  // Add special facility (requires character selection)
-  const addSpecialFacility = (facility, ownerId) => {
-    const owner = party.find(c => c.id === ownerId);
-    const ownerMaxSlots = owner.level >= 17 ? 6 : owner.level >= 13 ? 5 : owner.level >= 9 ? 4 : 2;
-    
-    if (owner.usedSpecialSlots < ownerMaxSlots) {
+  // Add special facility (no ownership tracking)
+  const addSpecialFacility = (facility) => {
+    if (specialFacilities.length < getTotalSpecialSlots()) {
       setSpecialFacilities([...specialFacilities, {
         ...facility,
-        id: Date.now(),
-        ownerId: ownerId,
-        ownerName: owner.name
+        id: Date.now()
       }]);
-      updateCharacter(ownerId, { usedSpecialSlots: owner.usedSpecialSlots + 1 });
       setShowAddFacility(false);
     }
   };
 
   // Remove special facility
   const removeSpecialFacility = (id) => {
-    const facility = specialFacilities.find(f => f.id === id);
-    if (facility) {
-      const owner = party.find(c => c.id === facility.ownerId);
-      if (owner) {
-        updateCharacter(facility.ownerId, { usedSpecialSlots: owner.usedSpecialSlots - 1 });
-      }
-      setSpecialFacilities(specialFacilities.filter(f => f.id !== id));
-    }
+    setSpecialFacilities(specialFacilities.filter(f => f.id !== id));
   };
 
   // Add basic facility
