@@ -643,7 +643,7 @@ function App() {
           <div className="mt-6 text-sm text-gray-500 text-center space-y-1">
             <p><strong>Shared Bastion Rules:</strong></p>
             <p>• All characters manage one bastion together</p>
-            <p>• Party's combined levels determine available facilities</p>
+            <p>• Special facility slots based on highest level character</p>
             <p>• Resources and defenders are shared by the party</p>
             <p>• Any character can issue orders during bastion turns</p>
           </div>
