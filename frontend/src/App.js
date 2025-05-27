@@ -434,20 +434,22 @@ function App() {
 
   // Save data to localStorage whenever it changes
   useEffect(() => {
-    const data = {
-      party,
-      bastionGold,
-      bastionDefenders,
-      bastionTurn,
-      defensiveWalls,
-      armoryStocked,
-      basicFacilities,
-      specialFacilities
-    };
-    try {
-      localStorage.setItem('dnd-shared-bastion', JSON.stringify(data));
-    } catch (error) {
-      console.error('Error saving bastion data:', error);
+    if (party.length > 0) { // Only save if we have party data
+      const data = {
+        party,
+        bastionGold,
+        bastionDefenders,
+        bastionTurn,
+        defensiveWalls,
+        armoryStocked,
+        basicFacilities,
+        specialFacilities
+      };
+      try {
+        localStorage.setItem('dnd-shared-bastion', JSON.stringify(data));
+      } catch (error) {
+        console.error('Error saving bastion data:', error);
+      }
     }
   }, [party, bastionGold, bastionDefenders, bastionTurn, defensiveWalls, armoryStocked, basicFacilities, specialFacilities]);
 
