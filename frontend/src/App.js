@@ -476,18 +476,47 @@ function App() {
   // Create new bastion
   const createBastion = async () => {
     try {
-      const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
-      const response = await fetch(`${backendUrl}/api/bastion/create`, {
-        method: 'POST'
-      });
+      // Try multiple backend URLs for different environments
+      const backendUrls = [
+        process.env.REACT_APP_BACKEND_URL,
+        'http://localhost:5000',
+        'http://127.0.0.1:5000',
+        window.location.origin.replace(':3000', ':5000'),
+        window.location.protocol + '//' + window.location.hostname + ':5000'
+      ].filter(Boolean);
+      
+      let response;
+      let workingUrl;
+      
+      for (const url of backendUrls) {
+        try {
+          console.log('Trying to create bastion at:', url);
+          response = await fetch(`${url}/api/bastion/create`, {
+            method: 'POST'
+          });
+          if (response.ok) {
+            workingUrl = url;
+            break;
+          }
+        } catch (err) {
+          console.log('Failed to connect to:', url, err.message);
+          continue;
+        }
+      }
+      
+      if (!response || !response.ok) {
+        throw new Error('Could not connect to backend server');
+      }
+      
       const data = await response.json();
+      console.log('Created bastion:', data, 'using URL:', workingUrl);
       
       setRoomCode(data.roomCode);
       setIsHost(true);
       joinBastion(data.roomCode);
     } catch (error) {
       console.error('Error creating bastion:', error);
-      alert('Failed to create bastion');
+      alert('Failed to create bastion. Please check if the backend server is running.');
     }
   };
 
