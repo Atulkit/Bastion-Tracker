@@ -476,14 +476,13 @@ function App() {
   // Create new bastion
   const createBastion = async () => {
     try {
-      // Try multiple backend URLs for different environments
+      // Use the same domain as frontend for backend API
+      const baseUrl = window.location.origin;
       const backendUrls = [
-        process.env.REACT_APP_BACKEND_URL,
-        'http://localhost:5000',
-        'http://127.0.0.1:5000',
-        window.location.origin.replace(':3000', ':5000'),
-        window.location.protocol + '//' + window.location.hostname + ':5000'
-      ].filter(Boolean);
+        `${baseUrl}/api`,  // Same domain with /api path
+        `${baseUrl}:5000`, // Same domain, port 5000
+        'http://localhost:5000', // Local development fallback
+      ];
       
       let response;
       let workingUrl;
@@ -491,8 +490,11 @@ function App() {
       for (const url of backendUrls) {
         try {
           console.log('Trying to create bastion at:', url);
-          response = await fetch(`${url}/api/bastion/create`, {
-            method: 'POST'
+          response = await fetch(`${url}/bastion/create`, {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            }
           });
           if (response.ok) {
             workingUrl = url;
@@ -516,7 +518,7 @@ function App() {
       joinBastion(data.roomCode);
     } catch (error) {
       console.error('Error creating bastion:', error);
-      alert('Failed to create bastion. Please check if the backend server is running.');
+      alert('Failed to create bastion. The backend server may not be accessible from this domain.');
     }
   };
 
