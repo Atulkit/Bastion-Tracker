@@ -397,19 +397,36 @@ function App() {
 
   // Socket connection management
   useEffect(() => {
-    const backendUrl = process.env.REACT_APP_BACKEND_URL || 'http://localhost:5000';
-    const newSocket = io(backendUrl, {
-      autoConnect: false
+    // Try multiple backend URLs for different environments
+    const backendUrls = [
+      process.env.REACT_APP_BACKEND_URL,
+      'http://localhost:5000',
+      'http://127.0.0.1:5000',
+      window.location.origin.replace(':3000', ':5000'),
+      window.location.protocol + '//' + window.location.hostname + ':5000'
+    ].filter(Boolean);
+    
+    console.log('Trying backend URLs:', backendUrls);
+    let connectUrl = backendUrls[0] || 'http://localhost:5000';
+    
+    const newSocket = io(connectUrl, {
+      autoConnect: false,
+      transports: ['websocket', 'polling']
     });
 
     newSocket.on('connect', () => {
       setConnectionStatus('connected');
-      console.log('Connected to server');
+      console.log('Connected to server at:', connectUrl);
     });
 
     newSocket.on('disconnect', () => {
       setConnectionStatus('disconnected');
       console.log('Disconnected from server');
+    });
+
+    newSocket.on('connect_error', (error) => {
+      console.error('Connection error:', error);
+      setConnectionStatus('error');
     });
 
     newSocket.on('bastionState', (bastionData) => {
