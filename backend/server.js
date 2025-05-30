@@ -9,7 +9,13 @@ const server = http.createServer(app);
 
 // Configure CORS for Express
 app.use(cors({
-  origin: process.env.FRONTEND_URL || "http://localhost:3000",
+  origin: [
+    process.env.FRONTEND_URL || "http://localhost:3000",
+    "http://localhost:3000",
+    "http://localhost:3001", 
+    "https://localhost:3000",
+    "https://localhost:3001"
+  ],
   credentials: true
 }));
 
@@ -18,7 +24,13 @@ app.use(express.json());
 // Configure Socket.IO with CORS
 const io = socketIo(server, {
   cors: {
-    origin: process.env.FRONTEND_URL || "http://localhost:3000",
+    origin: [
+      process.env.FRONTEND_URL || "http://localhost:3000",
+      "http://localhost:3000",
+      "http://localhost:3001",
+      "https://localhost:3000", 
+      "https://localhost:3001"
+    ],
     methods: ["GET", "POST"],
     credentials: true
   }
