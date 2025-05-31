@@ -299,4 +299,7 @@ async def shutdown_db_client():
     client.close()
     logger.info("Database connection closed")
 
+# Use the socket app as the main app for Socket.io support
+app = socket_app
+
 
