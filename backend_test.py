@@ -170,7 +170,7 @@ class BastionTrackerAPITester:
 
 def main():
     # Get backend URL from environment if available
-    backend_url = "https://150e4084-95d1-4bca-9ed4-dffa8e0bb6ce.preview.emergentagent.com"
+    backend_url = "http://localhost:8001"
     
     # Setup tester
     tester = BastionTrackerAPITester(backend_url)
