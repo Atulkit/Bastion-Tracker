@@ -480,8 +480,8 @@ function App() {
       const baseUrl = window.location.origin;
       const backendUrls = [
         `${baseUrl}/api`,  // Same domain with /api path
-        `${baseUrl}:5000`, // Same domain, port 5000
-        'http://localhost:5000', // Local development fallback
+        `${baseUrl}:8001/api`, // Same domain, port 8001
+        'http://localhost:8001/api', // Local development fallback
       ];
       
       let response;
