@@ -270,9 +270,6 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Create Socket.io ASGI app after including routes
-socket_app = socketio.ASGIApp(sio, app)
-
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
@@ -299,7 +296,5 @@ async def shutdown_db_client():
     client.close()
     logger.info("Database connection closed")
 
-# Export the socket app for the ASGI server
-asgi_app = socket_app
-
-
+# Create Socket.io ASGI app that handles both HTTP and WebSocket
+socket_app = socketio.ASGIApp(sio, other_asgi_app=app)
