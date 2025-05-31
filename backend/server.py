@@ -31,9 +31,6 @@ app = FastAPI()
 # Create a router with the /api prefix
 api_router = APIRouter(prefix="/api")
 
-# Socket.io ASGI app
-socket_app = socketio.ASGIApp(sio, app)
-
 # In-memory storage for room management
 rooms = {}  # room_code -> {players: [], bastion_data: {}}
 
