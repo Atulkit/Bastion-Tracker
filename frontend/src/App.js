@@ -400,14 +400,14 @@ function App() {
     // Try multiple backend URLs for different environments
     const backendUrls = [
       process.env.REACT_APP_BACKEND_URL,
-      'http://localhost:5000',
-      'http://127.0.0.1:5000',
-      window.location.origin.replace(':3000', ':5000'),
-      window.location.protocol + '//' + window.location.hostname + ':5000'
+      'http://localhost:8001',
+      'http://127.0.0.1:8001',
+      window.location.origin.replace(':3000', ':8001'),
+      window.location.protocol + '//' + window.location.hostname + ':8001'
     ].filter(Boolean);
     
     console.log('Trying backend URLs:', backendUrls);
-    let connectUrl = backendUrls[0] || 'http://localhost:5000';
+    let connectUrl = backendUrls[0] || 'http://localhost:8001';
     
     const newSocket = io(connectUrl, {
       autoConnect: false,
