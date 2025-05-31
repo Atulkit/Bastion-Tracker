@@ -32,9 +32,9 @@ class BastionTrackerAPITester:
         
         try:
             if method == 'GET':
-                response = requests.get(url, headers=headers)
+                response = requests.get(url, headers=headers, timeout=10)
             elif method == 'POST':
-                response = requests.post(url, json=data, headers=headers)
+                response = requests.post(url, json=data, headers=headers, timeout=10)
             else:
                 print(f"❌ Failed - Unsupported method: {method}")
                 return False, None
@@ -68,6 +68,25 @@ class BastionTrackerAPITester:
             "",
             200
         )
+        
+    def test_status_endpoint(self):
+        """Test the status API endpoint"""
+        return self.run_test(
+            "Status API Endpoint",
+            "GET",
+            "status",
+            200
+        )
+        
+    def test_create_status_check(self):
+        """Test creating a status check"""
+        return self.run_test(
+            "Create Status Check",
+            "POST",
+            "status",
+            200,
+            data={"client_name": f"Test Client {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}"}
+        )
 
     def test_create_bastion(self):
         """Test creating a new bastion"""
@@ -81,6 +100,7 @@ class BastionTrackerAPITester:
         if success and response and 'roomCode' in response:
             self.room_code = response['roomCode']
             print(f"Created bastion with room code: {self.room_code}")
+            print(f"Bastion data: {json.dumps(response['bastionData'], indent=2)}")
             return True, response
         return False, None
 
@@ -91,12 +111,17 @@ class BastionTrackerAPITester:
             print("❌ No room code available for testing")
             return False, None
             
-        return self.run_test(
+        success, response = self.run_test(
             f"Get Bastion with code {code}",
             "GET",
             f"bastion/{code}",
             200
         )
+        
+        if success:
+            print(f"Retrieved bastion data: {json.dumps(response, indent=2)}")
+        
+        return success, response
     
     def test_invalid_bastion_code(self):
         """Test getting a bastion with an invalid room code"""
@@ -106,6 +131,30 @@ class BastionTrackerAPITester:
             "bastion/INVALID",
             404
         )
+        
+    def test_socket_io_endpoint(self):
+        """Test that the Socket.IO endpoint is available"""
+        try:
+            # Socket.IO typically uses /socket.io/ path
+            url = f"{self.base_url.replace('/api', '')}/socket.io/"
+            print(f"\n🔍 Testing Socket.IO endpoint availability...")
+            print(f"URL: {url}")
+            
+            self.tests_run += 1
+            response = requests.get(url, timeout=10)
+            
+            # Socket.IO should return a 200 or 400 status (400 is common for GET without proper params)
+            if response.status_code in [200, 400]:
+                self.tests_passed += 1
+                print(f"✅ Passed - Socket.IO endpoint is available (Status: {response.status_code})")
+                return True
+            else:
+                print(f"❌ Failed - Socket.IO endpoint returned unexpected status: {response.status_code}")
+                return False
+                
+        except Exception as e:
+            print(f"❌ Failed - Error accessing Socket.IO endpoint: {str(e)}")
+            return False
 
     def print_results(self):
         """Print test results summary"""
@@ -128,6 +177,8 @@ def main():
     
     # Run tests
     tester.test_root_endpoint()
+    tester.test_status_endpoint()
+    tester.test_create_status_check()
     tester.test_create_bastion()
     
     # If we have a room code, test getting the bastion
@@ -136,6 +187,9 @@ def main():
     
     # Test invalid room code
     tester.test_invalid_bastion_code()
+    
+    # Test Socket.IO endpoint
+    tester.test_socket_io_endpoint()
     
     # Print results
     success = tester.print_results()
