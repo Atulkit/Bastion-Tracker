@@ -270,6 +270,9 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# Create Socket.io ASGI app after including routes
+socket_app = socketio.ASGIApp(sio, app)
+
 # Configure logging
 logging.basicConfig(
     level=logging.INFO,
